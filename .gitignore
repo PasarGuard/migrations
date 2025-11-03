@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzz
+*.pywzz
+*.pyzzz
+*.pywzzz
+
+# Environment variables
+.env
