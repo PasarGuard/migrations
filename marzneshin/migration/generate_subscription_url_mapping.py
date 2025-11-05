@@ -11,7 +11,7 @@ from pathlib import Path
 from math import ceil
 from base64 import b64encode
 from hashlib import sha256
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 import pymysql
 from pymysql.cursors import DictCursor
 
@@ -219,8 +219,8 @@ def generate_subscription_url_mapping(
         logger.info(f"Cached prefixes for {len(admin_prefix_cache)} admin IDs")
         
         # Generate mappings
-        mappings = []
-        not_found = []
+        mappings = {}
+        not_found = {}
         matched_by_id = 0
         matched_by_username = 0
         
@@ -275,29 +275,27 @@ def generate_subscription_url_mapping(
                 if not new_url.startswith("http"):
                     new_url = f"/{pasarguard_subscription_path}/{token}"
                 
-                # Build mapping entry - only include pasarguard username if different
+                # Build mapping entry - username is the key, so don't include it in the value
                 mapping_entry = {
-                    "username": username,
                     "user_id": marz_user_id,  # Single user_id since both IDs are always the same
                     "old_subscription_url": old_url,
                     "new_subscription_url": new_url
                 }
-                
+
                 # Only include pasarguard username if it differs from marzneshin username
                 if pg_username != username:
                     mapping_entry["username_pasarguard"] = pg_username
-                
+
                 # Only include matched_by if not matched by username (to save space)
                 if match_method != "username":
                     mapping_entry["matched_by"] = match_method
-                
-                mappings.append(mapping_entry)
+
+                mappings[username] = mapping_entry
             else:
-                not_found.append({
-                    "username": username,
+                not_found[username] = {
                     "user_id": marz_user_id,
                     "old_subscription_url": old_url
-                })
+                }
         
         logger.info(f"Matched {matched_by_username} users by username, {matched_by_id} users by ID")
         

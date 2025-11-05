@@ -1,0 +1,32 @@
+{
+  "generated_at": "2025-01-15 12:00:00",
+  "total_users": 100,
+  "mapped_users": 98,
+  "not_found_users": 2,
+  "url_formats": {
+    "old_format": "/sub/{username}/{key}",
+    "new_format": "/sub/{token}"
+  },
+  "mappings": {
+    "example_user1": {
+      "user_id": 1,
+      "old_subscription_url": "/sub/example_user1/abc123def456789example",
+      "new_subscription_url": "/sub/ZXhhbXBsZV91c2VyMSwxNzM2OTQwMDAwExAmPlEaBc"
+    },
+    "john_doe": {
+      "user_id": 42,
+      "old_subscription_url": "/sub/john_doe/def789ghi012345example",
+      "new_subscription_url": "/sub/am9obl9kb2UsMTczNjk0MDAwMBpKcXRvWmNk"
+    },
+    "test_account": {
+      "user_id": 99,
+      "old_subscription_url": "/sub/test_account/ghi345jkl678901example",
+      "new_subscription_url": "/sub/dGVzdF9hY2NvdW50LDE3MzY5NDAwMDAYnRmKlPqWx"
+    },
+    "demo_user": {
+      "user_id": 150,
+      "old_subscription_url": "/sub/demo_user/jkl567mno234567example",
+      "new_subscription_url": "/sub/ZGVtb191c2VyLDE3MzY5NDAwMDAKmNxPqRsTu"
+    }
+  }
+}
