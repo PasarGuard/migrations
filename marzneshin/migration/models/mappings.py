@@ -109,6 +109,8 @@ COLUMN_MAPPINGS: Dict[str, Dict[str, tuple]] = {
         "is_disabled": ("is_disabled", MappingType.DIRECT, None),
         "inbound_id": ("inbound_tag", MappingType.TRANSFORM, "inbound_id_to_tag"),
         "priority": ("priority", MappingType.DIRECT, None),
+        # status is not in Marzneshin, will be set to '[]' (empty array) in converter
+        "status": (None, MappingType.SKIP, None),
     },
     
     "groups": {
@@ -166,6 +168,14 @@ COLUMN_MAPPINGS: Dict[str, Dict[str, tuple]] = {
         "uplink": ("uplink", MappingType.DIRECT, None),
         "downlink": ("downlink", MappingType.DIRECT, None),
         "used_traffic": ("uplink", MappingType.DIRECT, None),  # Fallback
+    },
+    
+    "admin_usage_logs": {
+        "id": ("id", MappingType.DIRECT, None),
+        "created_at": ("created_at", MappingType.DIRECT, None),
+        "admin_id": ("admin_id", MappingType.DIRECT, None),
+        "used_traffic": ("used_traffic", MappingType.DIRECT, None),
+        "used_traffic_at_reset": ("used_traffic_at_reset", MappingType.DIRECT, None),
     },
 }
 

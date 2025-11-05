@@ -186,6 +186,13 @@ class PasarguardLoader:
                 # Use '/' as default instead of empty string to avoid None conversion issues
                 if table == "hosts" and col == "path" and (value is None or (isinstance(value, str) and not value.strip())):
                     value = "/"
+                # Special handling for hosts.status - EnumArray requires '[]' for empty, not empty string
+                elif table == "hosts" and col == "status":
+                    if value is None or value == '':
+                        value = '[]'  # Empty array string representation for EnumArray
+                    # Ensure it's a string (EnumArray is stored as comma-separated string)
+                    elif not isinstance(value, str):
+                        value = '[]'  # Default to empty array if not a string
                 # Handle JSON fields
                 elif isinstance(value, dict):
                     value = json.dumps(value)
@@ -229,6 +236,13 @@ class PasarguardLoader:
                 # Use '/' as default instead of empty string to avoid None conversion issues
                 if table == "hosts" and col == "path" and (value is None or (isinstance(value, str) and not value.strip())):
                     value = "/"
+                # Special handling for hosts.status - EnumArray requires '[]' for empty, not empty string
+                elif table == "hosts" and col == "status":
+                    if value is None or value == '':
+                        value = '[]'  # Empty array string representation for EnumArray
+                    # Ensure it's a string (EnumArray is stored as comma-separated string)
+                    elif not isinstance(value, str):
+                        value = '[]'  # Default to empty array if not a string
                 # Handle JSON fields
                 elif isinstance(value, dict):
                     value = json.dumps(value)

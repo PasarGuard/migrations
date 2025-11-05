@@ -687,12 +687,22 @@ class DataConverter:
             if 'priority' not in converted_row or converted_row['priority'] is None:
                 converted_row['priority'] = 1  # Default priority
             
+            # Ensure status is set to empty array '[]' (EnumArray requires this format)
+            # Pasarguard hosts.status is an EnumArray, stored as comma-separated string or '[]' for empty
+            if 'status' not in converted_row or converted_row['status'] is None or converted_row['status'] == '':
+                converted_row['status'] = '[]'  # Empty array string representation
+            
             # Ensure inbound_tag uses the final unique tag from inbounds table
             # The transform function should handle this, but double-check here
             inbound_id = source_row.get('inbound_id')
             if inbound_id and inbound_id in self.inbound_id_to_final_tag_map:
                 converted_row['inbound_tag'] = self.inbound_id_to_final_tag_map[inbound_id]
                 logger.debug(f"Host {source_row.get('id')}: Using final tag '{converted_row['inbound_tag']}' for inbound_id {inbound_id}")
+        
+        elif table == "admin_usage_logs":
+            # Ensure used_traffic_at_reset is set (default to 0 since we don't have historical reset data)
+            if 'used_traffic_at_reset' not in converted_row or converted_row['used_traffic_at_reset'] is None:
+                converted_row['used_traffic_at_reset'] = 0
         
         return converted_row
     

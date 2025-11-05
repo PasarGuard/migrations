@@ -4,6 +4,12 @@ Configuration module for Marzneshin to Pasarguard migration.
 from dataclasses import dataclass
 from typing import Optional
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (in marzneshin directory)
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 
 @dataclass
@@ -24,7 +30,6 @@ class MigrationConfig:
     batch_size: int = 1000
     truncate_strings: bool = True
     skip_on_error: bool = True
-    dry_run: bool = False
     
     # Large table handling
     # Maximum rows to extract from usage/log tables (0 = no limit)

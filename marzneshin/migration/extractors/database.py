@@ -313,4 +313,105 @@ class MarzneshinExtractor:
                 stats[table] = 0
         
         return stats
+    
+    def extract_admin_usage_logs(self, max_rows: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Extract admin usage logs by aggregating from node_user_usages joined with users.
+        Since admin_usage_logs doesn't exist in Marzneshin, we compute it from user usage data.
+        
+        Args:
+            max_rows: Maximum rows to extract (applies to underlying node_user_usages table)
+            
+        Returns:
+            List of admin usage log rows with columns: id, created_at, admin_id, used_traffic
+        """
+        if not self.conn:
+            raise RuntimeError("Not connected to database")
+        
+        try:
+            # Check if node_user_usages and users tables exist
+            tables = self.discover_tables()
+            if 'node_user_usages' not in tables:
+                logger.warning("node_user_usages table not found, skipping admin_usage_logs extraction")
+                return []
+            if 'users' not in tables:
+                logger.warning("users table not found, skipping admin_usage_logs extraction")
+                return []
+            
+            # Get total count first
+            with self.conn.cursor() as count_cursor:
+                count_cursor.execute("""
+                    SELECT COUNT(*) as count
+                    FROM node_user_usages nuu
+                    INNER JOIN users u ON nuu.user_id = u.id
+                    WHERE u.admin_id IS NOT NULL
+                """)
+                total_count = count_cursor.fetchone()['count']
+            
+            # Apply row limit if specified
+            if max_rows is None:
+                max_rows = MIGRATION_CONFIG.max_usage_table_rows if MIGRATION_CONFIG.max_usage_table_rows > 0 else None
+            
+            # Build query to aggregate admin usage by created_at and admin_id
+            # Group by admin_id and created_at, sum used_traffic
+            if max_rows and max_rows < total_count:
+                logger.warning(
+                    f"  Admin usage logs will be limited to {max_rows:,} most recent entries "
+                    f"(based on {total_count:,} total node_user_usages entries). "
+                    f"Set MIGRATION_CONFIG.max_usage_table_rows=0 to extract all."
+                )
+                # Limit to most recent created_at values
+                query = f"""
+                    SELECT 
+                        nuu.created_at,
+                        u.admin_id,
+                        COALESCE(SUM(nuu.used_traffic), 0) as used_traffic,
+                        0 as used_traffic_at_reset
+                    FROM (
+                        SELECT DISTINCT created_at
+                        FROM node_user_usages
+                        ORDER BY created_at DESC
+                        LIMIT {max_rows}
+                    ) recent_dates
+                    INNER JOIN node_user_usages nuu ON nuu.created_at = recent_dates.created_at
+                    INNER JOIN users u ON nuu.user_id = u.id
+                    WHERE u.admin_id IS NOT NULL
+                    GROUP BY nuu.created_at, u.admin_id
+                    ORDER BY nuu.created_at DESC
+                """
+            else:
+                query = """
+                    SELECT 
+                        nuu.created_at,
+                        u.admin_id,
+                        COALESCE(SUM(nuu.used_traffic), 0) as used_traffic,
+                        0 as used_traffic_at_reset
+                    FROM node_user_usages nuu
+                    INNER JOIN users u ON nuu.user_id = u.id
+                    WHERE u.admin_id IS NOT NULL
+                    GROUP BY nuu.created_at, u.admin_id
+                    ORDER BY nuu.created_at DESC
+                """
+            
+            logger.info(f"Extracting admin usage logs from node_user_usages...")
+            start_time = time.time()
+            
+            with self.conn.cursor() as cursor:
+                cursor.execute(query)
+                rows = cursor.fetchall()
+            
+            # Add ID field to each row (sequential starting from 1)
+            for idx, row in enumerate(rows, 1):
+                row['id'] = idx
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"Extracted {len(rows)} admin usage log entries in {elapsed_time:.2f}s")
+            
+            return rows
+            
+        except Exception as e:
+            logger.error(f"Error extracting admin usage logs: {e}")
+            import traceback
+            logger.debug(f"Traceback: {traceback.format_exc()}")
+            raise
 
