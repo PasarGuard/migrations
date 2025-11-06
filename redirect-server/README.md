@@ -20,6 +20,21 @@ A lightweight Go web server that redirects old Marzneshin subscription URLs to n
 
 ## Installation
 
+### Automated (systemd)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PasarGuard/migrations/main/redirect-server/install_redirect_server.sh | sudo bash
+```
+
+Pass a Git tag to pin a specific release (defaults to `latest`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PasarGuard/migrations/main/redirect-server/install_redirect_server.sh | sudo bash -s -- v1.2.3
+```
+
+The installer downloads the prebuilt binary from GitHub releases, installs it under systemd, and seeds config placeholders in `/etc/redirect-server/`.
+It will attempt to install prerequisite tools (`curl`, `jq`, `tar`, `unzip`) using the host package manager when they are missing.
+
 1. Navigate to the redirect-server directory:
 ```bash
 cd redirect-server
