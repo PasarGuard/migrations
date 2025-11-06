@@ -43,3 +43,20 @@ url_mapping.json
 # OS
 Thumbs.db
 .DS_Store
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.dylib
+*.test
+*.out
+go.sum
+redirect-server/redirect-server
+redirect-server/redirect-server.exe
+
+# GoReleaser
+dist/
+*.tar.gz
+*.zip
+checksums.txt
