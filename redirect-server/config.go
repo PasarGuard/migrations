@@ -31,40 +31,39 @@ type UserMapping struct {
 	MatchedBy           string `json:"matched_by,omitempty"`
 }
 
-// Config holds the complete configuration including mappings
-type Config struct {
-	GeneratedAt    string                 `json:"generated_at"`
-	TotalUsers     int                    `json:"total_users"`
-	MappedUsers    int                    `json:"mapped_users"`
-	NotFoundUsers  int                    `json:"not_found_users"`
-	Server         ServerConfig           `json:"server"`
-	URLFormats     map[string]string      `json:"url_formats"`
-	Mappings       map[string]UserMapping `json:"mappings"`
-	NotFound       map[string]UserMapping `json:"not_found,omitempty"`
+// MappingData holds the URL mapping data
+type MappingData struct {
+	GeneratedAt   string                 `json:"generated_at"`
+	TotalUsers    int                    `json:"total_users"`
+	MappedUsers   int                    `json:"mapped_users"`
+	NotFoundUsers int                    `json:"not_found_users"`
+	URLFormats    map[string]string      `json:"url_formats"`
+	Mappings      map[string]UserMapping `json:"mappings"`
+	NotFound      map[string]UserMapping `json:"not_found,omitempty"`
 }
 
 // PathLookup is a reverse lookup map from old path to new URL
 type PathLookup map[string]string
 
-// LoadConfig loads the configuration from a JSON file
-func LoadConfig(filename string) (*Config, error) {
+// LoadServerConfig loads the server configuration from a JSON file
+func LoadServerConfig(filename string) (*ServerConfig, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	var config Config
+	var config ServerConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
 	// Validate server config
-	if config.Server.Port <= 0 || config.Server.Port > 65535 {
-		return nil, fmt.Errorf("invalid port number: %d", config.Server.Port)
+	if config.Port <= 0 || config.Port > 65535 {
+		return nil, fmt.Errorf("invalid port number: %d", config.Port)
 	}
 
-	if config.Server.SSL.Enabled {
-		if config.Server.SSL.Cert == "" || config.Server.SSL.Key == "" {
+	if config.SSL.Enabled {
+		if config.SSL.Cert == "" || config.SSL.Key == "" {
 			return nil, fmt.Errorf("SSL enabled but cert or key is empty")
 		}
 	}
@@ -72,11 +71,26 @@ func LoadConfig(filename string) (*Config, error) {
 	return &config, nil
 }
 
+// LoadMappingData loads the URL mapping data from a JSON file
+func LoadMappingData(filename string) (*MappingData, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read mapping file: %w", err)
+	}
+
+	var mappingData MappingData
+	if err := json.Unmarshal(data, &mappingData); err != nil {
+		return nil, fmt.Errorf("failed to parse mapping file: %w", err)
+	}
+
+	return &mappingData, nil
+}
+
 // BuildPathLookup creates a reverse lookup map from old paths to new URLs
-func BuildPathLookup(config *Config) PathLookup {
+func BuildPathLookup(mappingData *MappingData) PathLookup {
 	lookup := make(PathLookup)
 
-	for _, mapping := range config.Mappings {
+	for _, mapping := range mappingData.Mappings {
 		// Extract path from old URL (remove protocol and domain if present)
 		oldPath := extractPath(mapping.OldSubscriptionURL)
 

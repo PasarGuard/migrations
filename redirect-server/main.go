@@ -14,37 +14,49 @@ import (
 )
 
 var (
-	configFile string
-	config     *Config
-	pathLookup PathLookup
+	configFile  string
+	mappingFile string
+	serverCfg   *ServerConfig
+	pathLookup  PathLookup
 )
 
 func init() {
-	flag.StringVar(&configFile, "config", "subscription_url_mapping.json", "Path to the mapping configuration file")
+	flag.StringVar(&configFile, "c", "config.json", "Path to the server configuration file")
+	flag.StringVar(&configFile, "config", "config.json", "Path to the server configuration file")
+	flag.StringVar(&mappingFile, "m", "subscription_url_mapping.json", "Path to the URL mapping file")
+	flag.StringVar(&mappingFile, "map", "subscription_url_mapping.json", "Path to the URL mapping file")
 	flag.Parse()
 }
 
 func main() {
 	log.Println("Starting Subscription URL Redirect Server...")
 
-	// Load configuration
+	// Load server configuration
 	var err error
-	config, err = LoadConfig(configFile)
+	serverCfg, err = LoadServerConfig(configFile)
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Fatalf("Failed to load server config: %v", err)
 	}
 
-	log.Printf("Loaded configuration with %d user mappings", len(config.Mappings))
+	log.Printf("Loaded server configuration from %s", configFile)
+
+	// Load mapping data
+	mappingData, err := LoadMappingData(mappingFile)
+	if err != nil {
+		log.Fatalf("Failed to load mapping data: %v", err)
+	}
+
+	log.Printf("Loaded %d user mappings from %s", len(mappingData.Mappings), mappingFile)
 
 	// Build path lookup
-	pathLookup = BuildPathLookup(config)
+	pathLookup = BuildPathLookup(mappingData)
 	log.Printf("Built path lookup with %d entries", len(pathLookup))
 
 	// Setup HTTP handler
 	http.HandleFunc("/", redirectHandler)
 
 	// Prepare server address
-	addr := fmt.Sprintf("%s:%d", config.Server.Host, config.Server.Port)
+	addr := fmt.Sprintf("%s:%d", serverCfg.Host, serverCfg.Port)
 
 	// Create HTTP server
 	server := &http.Server{
@@ -57,11 +69,11 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		if config.Server.SSL.Enabled {
+		if serverCfg.SSL.Enabled {
 			log.Printf("Starting HTTPS server on %s", addr)
 
 			// Create TLS config from embedded cert and key
-			cert, err := tls.X509KeyPair([]byte(config.Server.SSL.Cert), []byte(config.Server.SSL.Key))
+			cert, err := tls.X509KeyPair([]byte(serverCfg.SSL.Cert), []byte(serverCfg.SSL.Key))
 			if err != nil {
 				log.Fatalf("Failed to load SSL certificate: %v", err)
 			}
@@ -126,7 +138,7 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	host := r.Host
 
 	// Build the final redirect URL
-	redirectURL := GetRedirectURL(newURL, config.Server.RedirectDomain, scheme, host)
+	redirectURL := GetRedirectURL(newURL, serverCfg.RedirectDomain, scheme, host)
 
 	// Log the redirect
 	log.Printf("Redirecting: %s -> %s", path, redirectURL)
