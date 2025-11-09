@@ -757,11 +757,17 @@ class PasarguardLoader:
                 return
             
             with self.conn.cursor() as cursor:
-                # Check which columns exist
+                # Check which columns exist (with metadata to validate types)
                 cursor.execute("DESCRIBE hosts")
-                existing_columns = {row['Field'] for row in cursor.fetchall()}
+                column_details = cursor.fetchall()
+                existing_columns = {row['Field'] for row in column_details}
+                column_info = {row['Field']: row for row in column_details}
                 
-                columns_added = []
+                schema_changes = []
+                
+                def _is_enum_like(col_type: str) -> bool:
+                    lowered = col_type.lower()
+                    return lowered.startswith("enum(") or lowered.startswith("set(")
                 
                 # Add status column if missing
                 if 'status' not in existing_columns:
@@ -769,11 +775,36 @@ class PasarguardLoader:
                     # Add as nullable first, update rows, then make non-nullable
                     cursor.execute("""
                         ALTER TABLE hosts 
-                        ADD COLUMN `status` VARCHAR(255) NULL
+                        ADD COLUMN `status` VARCHAR(60) NULL DEFAULT ''
                     """)
-                    cursor.execute("UPDATE hosts SET status = ''")
-                    columns_added.append('status')
+                    cursor.execute("UPDATE hosts SET status = '' WHERE status IS NULL")
+                    schema_changes.append("status (added)")
                     logger.info("✓ Added status column to hosts table")
+                    column_info['status'] = {'Type': 'varchar(60)', 'Null': 'YES', 'Default': ''}
+                else:
+                    status_col = column_info['status']
+                    status_type = status_col['Type'].lower()
+                    status_null = status_col['Null'] == 'YES'
+                    status_default = status_col['Default']
+                    needs_status_fix = (
+                        _is_enum_like(status_type)
+                        or not status_type.startswith('varchar(60)')
+                        or not status_null
+                        or status_default not in ('', None)
+                    )
+                    if needs_status_fix:
+                        logger.info("Fixing 'status' column definition on hosts table...")
+                        cursor.execute("""
+                            ALTER TABLE hosts 
+                            MODIFY COLUMN `status` VARCHAR(60) NULL DEFAULT ''
+                        """)
+                        schema_changes.append("status (type fixed)")
+                    # Clean up legacy empty array values
+                    cursor.execute("""
+                        UPDATE hosts 
+                        SET status = '' 
+                        WHERE status IS NULL OR status IN ('[]', '{}')
+                    """)
                 
                 # Add ech_config_list column if missing  
                 if 'ech_config_list' not in existing_columns:
@@ -782,12 +813,44 @@ class PasarguardLoader:
                         ALTER TABLE hosts 
                         ADD COLUMN `ech_config_list` VARCHAR(512) DEFAULT NULL
                     """)
-                    columns_added.append('ech_config_list')
+                    schema_changes.append('ech_config_list')
                     logger.info("✓ Added ech_config_list column to hosts table")
                 
+                # Ensure ALPN column matches PasarGuard expectations
+                if 'alpn' not in existing_columns:
+                    logger.info("Adding missing 'alpn' column to hosts table...")
+                    cursor.execute("""
+                        ALTER TABLE hosts 
+                        ADD COLUMN `alpn` VARCHAR(14) NULL DEFAULT NULL
+                    """)
+                    schema_changes.append("alpn (added)")
+                else:
+                    alpn_col = column_info['alpn']
+                    alpn_type = alpn_col['Type'].lower()
+                    alpn_null = alpn_col['Null'] == 'YES'
+                    alpn_default = alpn_col['Default']
+                    needs_alpn_fix = (
+                        _is_enum_like(alpn_type)
+                        or not alpn_type.startswith('varchar(14)')
+                        or not alpn_null
+                        or alpn_default is not None
+                    )
+                    if needs_alpn_fix:
+                        logger.info("Fixing 'alpn' column definition on hosts table...")
+                        cursor.execute("""
+                            ALTER TABLE hosts 
+                            MODIFY COLUMN `alpn` VARCHAR(14) NULL DEFAULT NULL
+                        """)
+                        schema_changes.append("alpn (type fixed)")
+                    cursor.execute("""
+                        UPDATE hosts 
+                        SET alpn = NULL 
+                        WHERE alpn IN ('none', '', '[]')
+                    """)
+                
                 # Log summary
-                if columns_added:
-                    logger.info(f"✓ Applied missing schema changes to hosts table: {', '.join(columns_added)}")
+                if schema_changes:
+                    logger.info(f"✓ Applied hosts schema changes: {', '.join(schema_changes)}")
                 else:
                     logger.info("Hosts table schema is up to date")
             
@@ -1089,4 +1152,3 @@ class PasarguardLoader:
             self.conn.rollback()
             logger.error(f"Failed to add missing user_template columns: {e}")
             raise
-
