@@ -126,19 +126,21 @@ class MigrationOrchestrator:
             self.loader.fix_hosts_null_paths()
             self.loader.fix_settings_default_flow()
             
-            # Step 12: Generate subscription URL mapping (if requested)
-            if hasattr(MIGRATION_CONFIG, 'generate_url_mapping') and MIGRATION_CONFIG.generate_url_mapping:
-                logger.info("\n[STEP 12] Generating subscription URL mapping...")
-                try:
-                    generate_subscription_url_mapping(
-                        output_file=MIGRATION_CONFIG.url_mapping_output_file,
-                        marzneshin_subscription_path=MIGRATION_CONFIG.marzneshin_subscription_path,
-                        pasarguard_subscription_path=MIGRATION_CONFIG.pasarguard_subscription_path
-                    )
-                    logger.info("✓ Subscription URL mapping generated successfully")
-                except Exception as e:
-                    logger.error(f"Failed to generate subscription URL mapping: {e}")
-                    logger.warning("Continuing despite URL mapping generation failure...")
+            # Step 12: Generate subscription URL mapping
+            logger.info("\n[STEP 12] Generating subscription URL mapping...")
+            try:
+                output_file = getattr(MIGRATION_CONFIG, 'url_mapping_output_file', 'subscription_url_mapping.json')
+                marzneshin_path = getattr(MIGRATION_CONFIG, 'marzneshin_subscription_path', 'sub')
+                pasarguard_path = getattr(MIGRATION_CONFIG, 'pasarguard_subscription_path', 'sub')
+                generate_subscription_url_mapping(
+                    output_file=output_file,
+                    marzneshin_subscription_path=marzneshin_path,
+                    pasarguard_subscription_path=pasarguard_path
+                )
+                logger.info("✓ Subscription URL mapping generated successfully")
+            except Exception as e:
+                logger.error(f"Failed to generate subscription URL mapping: {e}")
+                logger.warning("Continuing despite URL mapping generation failure...")
             
             # Step 13: Print summary
             self.statistics['end_time'] = time.time()
@@ -388,11 +390,6 @@ def main():
         help='Maximum rows to extract from usage tables (default: 100000, 0 = no limit)'
     )
     parser.add_argument(
-        '--generate-url-mapping',
-        action='store_true',
-        help='Generate subscription URL mapping after migration completes'
-    )
-    parser.add_argument(
         '--url-mapping-output',
         type=str,
         default='subscription_url_mapping.json',
@@ -420,11 +417,10 @@ def main():
         MIGRATION_CONFIG.log_file = args.log_file
     if args.max_usage_rows is not None:
         MIGRATION_CONFIG.max_usage_table_rows = args.max_usage_rows
-    if args.generate_url_mapping:
-        MIGRATION_CONFIG.generate_url_mapping = True
-        MIGRATION_CONFIG.url_mapping_output_file = args.url_mapping_output
-        MIGRATION_CONFIG.marzneshin_subscription_path = args.marzneshin_subscription_path
-        MIGRATION_CONFIG.pasarguard_subscription_path = args.pasarguard_subscription_path
+    # Always set URL mapping config (generation is now automatic)
+    MIGRATION_CONFIG.url_mapping_output_file = args.url_mapping_output
+    MIGRATION_CONFIG.marzneshin_subscription_path = args.marzneshin_subscription_path
+    MIGRATION_CONFIG.pasarguard_subscription_path = args.pasarguard_subscription_path
     
     # Add excluded tables from command line
     if args.exclude_tables:
