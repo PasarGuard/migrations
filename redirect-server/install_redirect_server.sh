@@ -413,6 +413,8 @@ main() {
 
   local target_os target_arch arch_pattern release_json asset_info asset_url asset_name tmp_dir bin_source
 
+  tmp_dir=""
+
   target_os="$(detect_target_os)"
   target_arch="$(detect_target_arch)"
   arch_pattern="${target_arch}"
@@ -439,7 +441,7 @@ main() {
   echo "Downloading ${asset_name} from GitHub releases..."
 
   tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "${tmp_dir}"' EXIT
+  trap '[[ -n "${tmp_dir:-}" ]] && rm -rf "${tmp_dir}"' EXIT
 
   curl -fsSLo "${tmp_dir}/${asset_name}" "${asset_url}"
 
