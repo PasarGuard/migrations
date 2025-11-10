@@ -399,6 +399,14 @@ reload_and_start_service() {
   systemctl status "${SERVICE_NAME}.service" --no-pager
 }
 
+INSTALLER_TMP_DIR=""
+
+cleanup_temp_dir() {
+  if [[ -n "${INSTALLER_TMP_DIR:-}" && -d "${INSTALLER_TMP_DIR}" ]]; then
+    rm -rf "${INSTALLER_TMP_DIR}"
+  fi
+}
+
 main() {
   require_root
   ensure_cmd curl
@@ -411,9 +419,7 @@ main() {
     exit 1
   fi
 
-  local target_os target_arch arch_pattern release_json asset_info asset_url asset_name tmp_dir bin_source
-
-  tmp_dir=""
+  local target_os target_arch arch_pattern release_json asset_info asset_url asset_name bin_source
 
   target_os="$(detect_target_os)"
   target_arch="$(detect_target_arch)"
@@ -440,12 +446,12 @@ main() {
 
   echo "Downloading ${asset_name} from GitHub releases..."
 
-  tmp_dir="$(mktemp -d)"
-  trap '[[ -n "${tmp_dir:-}" ]] && rm -rf "${tmp_dir}"' EXIT
+  INSTALLER_TMP_DIR="$(mktemp -d)"
+  trap 'cleanup_temp_dir' EXIT
 
-  curl -fsSLo "${tmp_dir}/${asset_name}" "${asset_url}"
+  curl -fsSLo "${INSTALLER_TMP_DIR}/${asset_name}" "${asset_url}"
 
-  pushd "${tmp_dir}" >/dev/null
+  pushd "${INSTALLER_TMP_DIR}" >/dev/null
   bin_source=""
   case "${asset_name}" in
     *.tar.gz|*.tgz)
