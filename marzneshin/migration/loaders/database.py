@@ -1046,6 +1046,18 @@ class PasarguardLoader:
                     columns_added.append('is_disabled')
                     logger.info("✓ Added is_disabled column to admins table")
                 
+                # Add notification_enable column if missing
+                if 'notification_enable' not in existing_columns:
+                    logger.info("Adding missing 'notification_enable' column to admins table...")
+                    cursor.execute("""
+                        ALTER TABLE admins 
+                        ADD COLUMN `notification_enable` JSON DEFAULT NULL
+                    """)
+                    columns_added.append('notification_enable')
+                    logger.info("✓ Added notification_enable column to admins table")
+                else:
+                    logger.info("notification_enable column already exists, skipping")
+                
                 # Log summary
                 if columns_added:
                     logger.info(f"✓ Applied missing schema changes to admins table: {', '.join(columns_added)}")
