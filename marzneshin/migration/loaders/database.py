@@ -1046,17 +1046,59 @@ class PasarguardLoader:
                     columns_added.append('is_disabled')
                     logger.info("✓ Added is_disabled column to admins table")
                 
-                # Add notification_enable column if missing
+                # Add notification_enable column if missing, or fix if it's nullable
+                default_notification_enable = json.dumps({
+                    "create": False,
+                    "modify": False,
+                    "delete": False,
+                    "status_change": False,
+                    "reset_data_usage": False,
+                    "data_reset_by_next": False,
+                    "subscription_revoked": False
+                })
+                # Escape the JSON string for use in SQL
+                escaped_default = pymysql.escape_string(default_notification_enable)
+                
                 if 'notification_enable' not in existing_columns:
                     logger.info("Adding missing 'notification_enable' column to admins table...")
-                    cursor.execute("""
+                    cursor.execute(f"""
                         ALTER TABLE admins 
-                        ADD COLUMN `notification_enable` JSON DEFAULT NULL
+                        ADD COLUMN `notification_enable` JSON NOT NULL DEFAULT ('{escaped_default}')
                     """)
                     columns_added.append('notification_enable')
                     logger.info("✓ Added notification_enable column to admins table")
                 else:
-                    logger.info("notification_enable column already exists, skipping")
+                    # Check if column is nullable or has wrong default
+                    cursor.execute("""
+                        SELECT IS_NULLABLE, COLUMN_DEFAULT
+                        FROM INFORMATION_SCHEMA.COLUMNS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                        AND TABLE_NAME = 'admins'
+                        AND COLUMN_NAME = 'notification_enable'
+                    """)
+                    col_info = cursor.fetchone()
+                    
+                    if col_info and (col_info['IS_NULLABLE'] == 'YES' or col_info['COLUMN_DEFAULT'] is None):
+                        logger.info("Fixing 'notification_enable' column to be NOT NULL with default value...")
+                        # First, update any NULL values to the default
+                        cursor.execute("""
+                            UPDATE admins 
+                            SET notification_enable = %s 
+                            WHERE notification_enable IS NULL
+                        """, (default_notification_enable,))
+                        null_count = cursor.rowcount
+                        if null_count > 0:
+                            logger.info(f"✓ Updated {null_count} NULL notification_enable values to default")
+                        
+                        # Then modify the column to be NOT NULL with default
+                        cursor.execute(f"""
+                            ALTER TABLE admins 
+                            MODIFY COLUMN `notification_enable` JSON NOT NULL DEFAULT ('{escaped_default}')
+                        """)
+                        columns_added.append('notification_enable (fixed)')
+                        logger.info("✓ Fixed notification_enable column to be NOT NULL with default")
+                    else:
+                        logger.info("notification_enable column already exists with correct constraints, skipping")
                 
                 # Log summary
                 if columns_added:

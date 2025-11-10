@@ -681,6 +681,18 @@ class DataConverter:
             # Ensure used_traffic is set
             if 'used_traffic' not in converted_row:
                 converted_row['used_traffic'] = 0
+            
+            # Ensure notification_enable is set with default value
+            if 'notification_enable' not in converted_row or converted_row['notification_enable'] is None:
+                converted_row['notification_enable'] = {
+                    "create": False,
+                    "modify": False,
+                    "delete": False,
+                    "status_change": False,
+                    "reset_data_usage": False,
+                    "data_reset_by_next": False,
+                    "subscription_revoked": False
+                }
         
         elif table == "hosts":
             # Add default priority if missing (Marzneshin doesn't have this field)
