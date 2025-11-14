@@ -310,6 +310,11 @@ class MigrationOrchestrator:
                 logger.info("  Updating validator with actual inbound IDs from database...")
                 self.validator.update_inbound_ids_from_database(self.loader.conn)
             
+            # Update admin IDs after admins are loaded so users can reference them
+            if target_table == "admins":
+                logger.info("  Updating validator with actual admin IDs from database...")
+                self.validator.update_admin_ids_from_database(self.loader.conn)
+            
             # Update statistics
             self.statistics['tables_migrated'] += 1
             self.statistics['total_rows_migrated'] += success

@@ -19,6 +19,7 @@ class DataValidator:
         self.valid_group_ids: Set[int] = set()
         self.valid_inbound_ids: Set[int] = set()
         self.valid_inbound_tags: Set[str] = set()
+        self.valid_admin_ids: Set[int] = set()
     
     def build_reference_sets(self, all_data: Dict[str, List[Dict[str, Any]]]):
         """
@@ -47,6 +48,11 @@ class DataValidator:
             self.valid_inbound_ids = {row['id'] for row in all_data['inbounds'] if 'id' in row}
             self.valid_inbound_tags = {row['tag'] for row in all_data['inbounds'] if 'tag' in row}
             logger.info(f"Found {len(self.valid_inbound_ids)} valid inbound IDs")
+        
+        # Build admin IDs
+        if 'admins' in all_data:
+            self.valid_admin_ids = {row['id'] for row in all_data['admins'] if 'id' in row}
+            logger.info(f"Found {len(self.valid_admin_ids)} valid admin IDs")
     
     def update_inbound_ids_from_database(self, conn):
         """
@@ -64,6 +70,23 @@ class DataValidator:
                 logger.info(f"Updated valid inbound IDs from database: {len(self.valid_inbound_ids)} IDs")
         except Exception as e:
             logger.warning(f"Failed to update inbound IDs from database: {e}")
+    
+    def update_admin_ids_from_database(self, conn):
+        """
+        Update valid_admin_ids from the target database.
+        This is needed after admins are loaded to ensure users can reference them.
+        
+        Args:
+            conn: Database connection
+        """
+        try:
+            with conn.cursor(DictCursor) as cursor:
+                cursor.execute("SELECT id FROM admins")
+                results = cursor.fetchall()
+                self.valid_admin_ids = {row['id'] for row in results}
+                logger.info(f"Updated valid admin IDs from database: {len(self.valid_admin_ids)} IDs")
+        except Exception as e:
+            logger.warning(f"Failed to update admin IDs from database: {e}")
     
     def validate_foreign_keys(
         self,
@@ -85,7 +108,10 @@ class DataValidator:
         
         original_count = len(rows)
         
-        if table == "users_groups_association":
+        if table == "users":
+            rows = self._validate_users(rows)
+        
+        elif table == "users_groups_association":
             rows = self._validate_user_group_association(rows)
         
         elif table == "inbounds_groups_association":
@@ -117,6 +143,16 @@ class DataValidator:
             logger.info(f"Filtered {filtered_count} rows from {table} due to invalid foreign keys")
         
         return rows
+    
+    def _validate_users(
+        self,
+        rows: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Validate users foreign keys (admin_id)."""
+        return [
+            row for row in rows
+            if row.get('admin_id') is None or row.get('admin_id') in self.valid_admin_ids
+        ]
     
     def _validate_user_group_association(
         self,
