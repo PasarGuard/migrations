@@ -190,58 +190,132 @@ prompt_for_map_file() {
   echo
 
   local map_source=""
-  while true; do
-    read -p "Enter the path to your subscription_url_mapping.json file: " map_source
+  
+  # Check if provided via environment variable
+  if [[ -n "${MAP_FILE:-}" ]]; then
+    map_source="${MAP_FILE}"
+    echo "Using mapping file from MAP_FILE environment variable: ${map_source}"
+  elif [[ -t 0 ]]; then
+    # Interactive mode - stdin is a TTY
+    while true; do
+      read -p "Enter the path to your subscription_url_mapping.json file: " map_source
 
+      if [[ -z "${map_source}" ]]; then
+        echo "Error: Path cannot be empty." >&2
+        continue
+      fi
+
+      # Expand tilde to home directory
+      map_source="${map_source/#\~/$HOME}"
+
+      if [[ ! -f "${map_source}" ]]; then
+        echo "Error: File '${map_source}' does not exist." >&2
+        continue
+      fi
+
+      # Validate JSON
+      if ! jq empty "${map_source}" 2>/dev/null; then
+        echo "Error: File '${map_source}' is not valid JSON." >&2
+        continue
+      fi
+
+      break
+    done
+  else
+    # Non-interactive mode - try common locations
+    local common_paths=(
+      "${HOME}/migrations/marzneshin/subscription_url_mapping.json"
+      "${HOME}/subscription_url_mapping.json"
+      "./subscription_url_mapping.json"
+      "/tmp/subscription_url_mapping.json"
+    )
+    
+    echo "Non-interactive mode detected. Searching for mapping file..."
+    for path in "${common_paths[@]}"; do
+      if [[ -f "${path}" ]]; then
+        if jq empty "${path}" 2>/dev/null; then
+          map_source="${path}"
+          echo "Found mapping file at: ${map_source}"
+          break
+        fi
+      fi
+    done
+    
     if [[ -z "${map_source}" ]]; then
-      echo "Error: Path cannot be empty." >&2
-      continue
+      echo "Error: Could not find subscription_url_mapping.json file." >&2
+      echo "Please either:" >&2
+      echo "  1) Set MAP_FILE environment variable: MAP_FILE=/path/to/file" >&2
+      echo "  2) Place the file in one of these locations:" >&2
+      printf "     - %s\n" "${common_paths[@]}" >&2
+      echo "  3) Run the installer interactively (not piped)" >&2
+      exit 1
     fi
+  fi
 
-    # Expand tilde to home directory
-    map_source="${map_source/#\~/$HOME}"
+  # Expand tilde to home directory
+  map_source="${map_source/#\~/$HOME}"
 
-    if [[ ! -f "${map_source}" ]]; then
-      echo "Error: File '${map_source}' does not exist." >&2
-      continue
-    fi
+  if [[ ! -f "${map_source}" ]]; then
+    echo "Error: File '${map_source}' does not exist." >&2
+    exit 1
+  fi
 
-    # Validate JSON
-    if ! jq empty "${map_source}" 2>/dev/null; then
-      echo "Error: File '${map_source}' is not valid JSON." >&2
-      continue
-    fi
+  # Validate JSON
+  if ! jq empty "${map_source}" 2>/dev/null; then
+    echo "Error: File '${map_source}' is not valid JSON." >&2
+    exit 1
+  fi
 
-    # Copy the file
-    cp "${map_source}" "${CONFIG_DIR}/subscription_url_mapping.json"
-    chown "${SERVICE_USER}:${SERVICE_USER}" "${CONFIG_DIR}/subscription_url_mapping.json"
-    chmod 0640 "${CONFIG_DIR}/subscription_url_mapping.json"
+  # Copy the file
+  cp "${map_source}" "${CONFIG_DIR}/subscription_url_mapping.json"
+  chown "${SERVICE_USER}:${SERVICE_USER}" "${CONFIG_DIR}/subscription_url_mapping.json"
+  chmod 0640 "${CONFIG_DIR}/subscription_url_mapping.json"
 
-    local mapping_count
-    mapping_count=$(jq '.mappings | length' "${CONFIG_DIR}/subscription_url_mapping.json" 2>/dev/null || echo "0")
-    echo "✓ Successfully loaded mapping file with ${mapping_count} user mappings."
-    break
-  done
+  local mapping_count
+  mapping_count=$(jq '.mappings | length' "${CONFIG_DIR}/subscription_url_mapping.json" 2>/dev/null || echo "0")
+  echo "✓ Successfully loaded mapping file with ${mapping_count} user mappings."
 }
 
 prompt_for_config() {
   echo
   echo "=== Server Configuration Setup ==="
+  
+  # Check if config already exists
+  if [[ -f "${CONFIG_DIR}/config.json" ]]; then
+    echo "Configuration file already exists at ${CONFIG_DIR}/config.json"
+    echo "Skipping configuration setup. To reconfigure, delete the file and rerun."
+    return
+  fi
+  
+  # Check if provided via environment variable
+  if [[ -n "${CONFIG_FILE:-}" ]]; then
+    echo "Using config file from CONFIG_FILE environment variable: ${CONFIG_FILE}"
+    prompt_existing_config_with_path "${CONFIG_FILE}"
+    return
+  fi
+
   echo "You can either provide an existing config.json file or create one interactively."
   echo
 
   local choice=""
-  while [[ "${choice}" != "1" && "${choice}" != "2" ]]; do
-    echo "Choose an option:"
-    echo "  1) Provide existing config.json file path"
-    echo "  2) Create configuration interactively"
-    read -p "Enter choice (1 or 2): " choice
-  done
+  if [[ -t 0 ]]; then
+    # Interactive mode
+    while [[ "${choice}" != "1" && "${choice}" != "2" ]]; do
+      echo "Choose an option:"
+      echo "  1) Provide existing config.json file path"
+      echo "  2) Create configuration interactively"
+      read -p "Enter choice (1 or 2): " choice
+    done
 
-  if [[ "${choice}" == "1" ]]; then
-    prompt_existing_config
+    if [[ "${choice}" == "1" ]]; then
+      prompt_existing_config
+    else
+      prompt_interactive_config
+    fi
   else
-    prompt_interactive_config
+    # Non-interactive mode - create default config
+    echo "Non-interactive mode detected. Creating default configuration..."
+    create_default_config
   fi
 }
 
@@ -277,6 +351,58 @@ prompt_existing_config() {
     echo "✓ Successfully loaded configuration file."
     break
   done
+}
+
+prompt_existing_config_with_path() {
+  local config_source="$1"
+  
+  # Expand tilde to home directory
+  config_source="${config_source/#\~/$HOME}"
+
+  if [[ ! -f "${config_source}" ]]; then
+    echo "Error: File '${config_source}' does not exist." >&2
+    exit 1
+  fi
+
+  # Validate JSON
+  if ! jq empty "${config_source}" 2>/dev/null; then
+    echo "Error: File '${config_source}' is not valid JSON." >&2
+    exit 1
+  fi
+
+  # Copy the file
+  cp "${config_source}" "${CONFIG_DIR}/config.json"
+  chown "${SERVICE_USER}:${SERVICE_USER}" "${CONFIG_DIR}/config.json"
+  chmod 0640 "${CONFIG_DIR}/config.json"
+
+  echo "✓ Successfully loaded configuration file."
+}
+
+create_default_config() {
+  echo "Creating default configuration (HTTP on port 8080)..."
+  jq -n \
+    --arg host "0.0.0.0" \
+    --argjson port 8080 \
+    --arg redirect_domain "" \
+    --argjson ssl_enabled false \
+    --arg ssl_cert "" \
+    --arg ssl_key "" \
+    '{
+      host: $host,
+      port: $port,
+      redirect_domain: $redirect_domain,
+      ssl: {
+        enabled: $ssl_enabled,
+        cert: $ssl_cert,
+        key: $ssl_key
+      }
+    }' > "${CONFIG_DIR}/config.json"
+
+  chown "${SERVICE_USER}:${SERVICE_USER}" "${CONFIG_DIR}/config.json"
+  chmod 0640 "${CONFIG_DIR}/config.json"
+
+  echo "✓ Default configuration file created successfully."
+  echo "  You can edit ${CONFIG_DIR}/config.json to customize settings."
 }
 
 prompt_interactive_config() {
