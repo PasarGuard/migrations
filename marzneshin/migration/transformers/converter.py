@@ -6,7 +6,7 @@ import json
 import logging
 import uuid
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 import xxhash
 
@@ -715,6 +715,14 @@ class DataConverter:
             # Ensure used_traffic_at_reset is set (default to 0 since we don't have historical reset data)
             if 'used_traffic_at_reset' not in converted_row or converted_row['used_traffic_at_reset'] is None:
                 converted_row['used_traffic_at_reset'] = 0
+            # Ensure reset_at is set (required field with default)
+            if 'reset_at' not in converted_row or converted_row['reset_at'] is None:
+                converted_row['reset_at'] = datetime.now(timezone.utc)
+        
+        elif table == "core_configs":
+            # Ensure created_at is set (required field with default)
+            if 'created_at' not in converted_row or converted_row['created_at'] is None:
+                converted_row['created_at'] = datetime.now(timezone.utc)
         
         return converted_row
     

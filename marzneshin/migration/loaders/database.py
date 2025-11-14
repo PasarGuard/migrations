@@ -1056,14 +1056,16 @@ class PasarguardLoader:
                     "data_reset_by_next": False,
                     "subscription_revoked": False
                 })
-                # Escape the JSON string for use in SQL
-                escaped_default = pymysql.escape_string(default_notification_enable)
+                # Escape the JSON string for use in SQL (escape single quotes by doubling them for MySQL)
+                # Then wrap in CAST(... AS JSON) for proper JSON default value
+                escaped_default = default_notification_enable.replace("'", "''")
+                json_default = f"CAST('{escaped_default}' AS JSON)"
                 
                 if 'notification_enable' not in existing_columns:
                     logger.info("Adding missing 'notification_enable' column to admins table...")
                     cursor.execute(f"""
                         ALTER TABLE admins 
-                        ADD COLUMN `notification_enable` JSON NOT NULL DEFAULT ('{escaped_default}')
+                        ADD COLUMN `notification_enable` JSON NOT NULL DEFAULT {json_default}
                     """)
                     columns_added.append('notification_enable')
                     logger.info("✓ Added notification_enable column to admins table")
@@ -1093,7 +1095,7 @@ class PasarguardLoader:
                         # Then modify the column to be NOT NULL with default
                         cursor.execute(f"""
                             ALTER TABLE admins 
-                            MODIFY COLUMN `notification_enable` JSON NOT NULL DEFAULT ('{escaped_default}')
+                            MODIFY COLUMN `notification_enable` JSON NOT NULL DEFAULT {json_default}
                         """)
                         columns_added.append('notification_enable (fixed)')
                         logger.info("✓ Fixed notification_enable column to be NOT NULL with default")
