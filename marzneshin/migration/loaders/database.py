@@ -193,6 +193,36 @@ class PasarguardLoader:
                     # Ensure it's a string (EnumArray is stored as comma-separated string)
                     elif not isinstance(value, str):
                         value = '[]'  # Default to empty array if not a string
+                # Special handling for notification_enable - ensure it's a valid JSON string
+                elif table == "admins" and col == "notification_enable":
+                    if isinstance(value, dict):
+                        value = json.dumps(value, sort_keys=True)
+                    elif isinstance(value, str):
+                        # Validate it's valid JSON
+                        try:
+                            json.loads(value)  # Validate JSON
+                        except (json.JSONDecodeError, TypeError):
+                            # If invalid, use default
+                            value = json.dumps({
+                                "create": False,
+                                "modify": False,
+                                "delete": False,
+                                "status_change": False,
+                                "reset_data_usage": False,
+                                "data_reset_by_next": False,
+                                "subscription_revoked": False
+                            }, sort_keys=True)
+                    elif value is None:
+                        # Use default if None
+                        value = json.dumps({
+                            "create": False,
+                            "modify": False,
+                            "delete": False,
+                            "status_change": False,
+                            "reset_data_usage": False,
+                            "data_reset_by_next": False,
+                            "subscription_revoked": False
+                        }, sort_keys=True)
                 # Handle JSON fields
                 elif isinstance(value, dict):
                     # For JSON columns, ensure the JSON is properly formatted
@@ -245,6 +275,36 @@ class PasarguardLoader:
                     # Ensure it's a string (EnumArray is stored as comma-separated string)
                     elif not isinstance(value, str):
                         value = '[]'  # Default to empty array if not a string
+                # Special handling for notification_enable - ensure it's a valid JSON string
+                elif table == "admins" and col == "notification_enable":
+                    if isinstance(value, dict):
+                        value = json.dumps(value, sort_keys=True)
+                    elif isinstance(value, str):
+                        # Validate it's valid JSON
+                        try:
+                            json.loads(value)  # Validate JSON
+                        except (json.JSONDecodeError, TypeError):
+                            # If invalid, use default
+                            value = json.dumps({
+                                "create": False,
+                                "modify": False,
+                                "delete": False,
+                                "status_change": False,
+                                "reset_data_usage": False,
+                                "data_reset_by_next": False,
+                                "subscription_revoked": False
+                            }, sort_keys=True)
+                    elif value is None:
+                        # Use default if None
+                        value = json.dumps({
+                            "create": False,
+                            "modify": False,
+                            "delete": False,
+                            "status_change": False,
+                            "reset_data_usage": False,
+                            "data_reset_by_next": False,
+                            "subscription_revoked": False
+                        }, sort_keys=True)
                 # Handle JSON fields
                 elif isinstance(value, dict):
                     # For JSON columns, ensure the JSON is properly formatted
