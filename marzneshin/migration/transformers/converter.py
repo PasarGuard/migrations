@@ -221,6 +221,7 @@ class DataConverter:
                     "config": json.dumps(xray_config),  # Convert to JSON string
                     "exclude_inbound_tags": None,  # Will be converted to None for empty sets
                     "fallbacks_inbound_tags": None,  # Will be converted to None for empty sets
+                    "created_at": datetime.now(timezone.utc),  # Add required created_at field
                     "_inbound_id": inbound_id,  # Temporary metadata for mapping
                     "_node_id": node_id  # Temporary metadata for mapping
                 }
@@ -268,6 +269,10 @@ class DataConverter:
                     # If name was modified during validation, restore original
                     validated['name'] = original_name
                     logger.debug(f"Restored original name field '{original_name}' (was '{validated.get('name')}')")
+                
+                # Ensure created_at is preserved (it was added in core_config creation)
+                if 'created_at' in config_clean and 'created_at' not in validated:
+                    validated['created_at'] = config_clean['created_at']
                 
                 # Final double-check before appending
                 if 'name' not in validated or not validated.get('name'):

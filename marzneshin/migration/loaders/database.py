@@ -195,7 +195,9 @@ class PasarguardLoader:
                         value = '[]'  # Default to empty array if not a string
                 # Handle JSON fields
                 elif isinstance(value, dict):
-                    value = json.dumps(value)
+                    # For JSON columns, ensure the JSON is properly formatted
+                    # PyMySQL will handle the conversion, but we need valid JSON string
+                    value = json.dumps(value, sort_keys=True)  # Sort keys for consistency
                 # Handle set fields (for StringArray columns)
                 elif isinstance(value, set):
                     value = ','.join(sorted(value)) if value else None
@@ -245,7 +247,9 @@ class PasarguardLoader:
                         value = '[]'  # Default to empty array if not a string
                 # Handle JSON fields
                 elif isinstance(value, dict):
-                    value = json.dumps(value)
+                    # For JSON columns, ensure the JSON is properly formatted
+                    # PyMySQL will handle the conversion, but we need valid JSON string
+                    value = json.dumps(value, sort_keys=True)  # Sort keys for consistency
                 # Handle set fields (for StringArray columns)
                 elif isinstance(value, set):
                     value = ','.join(sorted(value)) if value else None
