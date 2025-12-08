@@ -47,6 +47,11 @@ func main() {
 	}
 
 	log.Printf("Loaded %d user mappings from %s", len(mappingData.Mappings), mappingFile)
+	if mappingData.Panel != "" {
+		log.Printf("Mapping data panel: %s", mappingData.Panel)
+	} else {
+		log.Printf("Mapping data panel: not specified (backward compatible mode)")
+	}
 
 	// Build path lookup
 	pathLookup = BuildPathLookup(mappingData)

@@ -1,16 +1,19 @@
 # Subscription URL Redirect Server
 
-A lightweight Go web server that redirects old Marzneshin subscription URLs to new Pasarguard subscription URLs using separate configuration and mapping files.
+A lightweight Go web server that redirects old subscription URLs (from Marzneshin or x-ui) to new Pasarguard subscription URLs using separate configuration and mapping files. Supports both Marzneshin and x-ui panel migrations.
 
 ## Features
 
 - **Fast O(1) URL lookups** using in-memory hash map
 - **Separate config and mapping files** for better organization
+- **Multi-panel support** - Works with both Marzneshin and x-ui migration mappings
+- **Panel identification** - Automatically detects and logs which panel generated the mapping
 - **Configurable redirect domain** - redirect to a different domain or use the request domain
 - **Optional HTTPS support** with embedded SSL certificates (no external files needed)
 - **Graceful shutdown** with proper cleanup
 - **Detailed logging** for monitoring redirects
 - **301 Permanent Redirects** for SEO and caching benefits
+- **Backward compatible** - Works with mapping files that don't include panel field
 
 ## Prerequisites
 
@@ -59,6 +62,7 @@ The server requires two separate JSON files:
   "host": "0.0.0.0",
   "port": 8080,
   "redirect_domain": "",
+  "panel": "x-ui",
   "ssl": {
     "enabled": false,
     "cert": "",
@@ -69,12 +73,39 @@ The server requires two separate JSON files:
 
 ### 2. URL Mapping File (subscription_url_mapping.json)
 
+The mapping file format supports both Marzneshin and x-ui panels. The `panel` field is optional but recommended for identification.
+
+**Example for x-ui:**
 ```json
 {
   "generated_at": "2025-01-15 12:00:00",
   "total_users": 100,
   "mapped_users": 98,
   "not_found_users": 2,
+  "panel": "x-ui",
+  "url_formats": {
+    "old_format": "/sub/{email}/{key}",
+    "new_format": "/sub/{token}"
+  },
+  "mappings": {
+    "user@example.com": {
+      "user_id": 1,
+      "old_subscription_url": "/sub/user@example.com/key123",
+      "new_subscription_url": "/sub/token456",
+      "inbound_id": 1
+    }
+  }
+}
+```
+
+**Example for Marzneshin:**
+```json
+{
+  "generated_at": "2025-01-15 12:00:00",
+  "total_users": 100,
+  "mapped_users": 98,
+  "not_found_users": 2,
+  "panel": "marzneshin",
   "url_formats": {
     "old_format": "/sub/{username}/{key}",
     "new_format": "/sub/{token}"
@@ -89,6 +120,8 @@ The server requires two separate JSON files:
 }
 ```
 
+**Note:** The `panel` field is optional. Mapping files without it will still work (backward compatibility).
+
 ### Server Configuration Options
 
 | Field | Type | Description |
@@ -96,6 +129,7 @@ The server requires two separate JSON files:
 | `host` | string | The host address to bind to (e.g., `0.0.0.0` for all interfaces, `127.0.0.1` for localhost) |
 | `port` | integer | The port to listen on (1-65535) |
 | `redirect_domain` | string | Optional. If set, all redirects will use this domain. If empty, uses the request's domain. Examples: `https://new.example.com` or `new.example.com` |
+| `panel` | string | Optional. Panel identifier (e.g., `"x-ui"`, `"marzneshin"`). Used for logging and identification. The server automatically detects the panel from the mapping file. |
 | `ssl.enabled` | boolean | Enable HTTPS mode |
 | `ssl.cert` | string | PEM-encoded SSL certificate (required if SSL enabled) |
 | `ssl.key` | string | PEM-encoded SSL private key (required if SSL enabled) |
@@ -185,11 +219,23 @@ This starts the server using the default files:
 }
 ```
 
+## Multi-Panel Support
+
+The redirect server supports mapping files from both **Marzneshin** and **x-ui** migrations:
+
+- **Marzneshin**: Uses username-based keys in mappings (e.g., `"username1"`)
+- **x-ui**: Uses email-based keys in mappings (e.g., `"user@example.com"`) and may include `inbound_id` field
+- **Panel Detection**: The server automatically detects the panel type from the `panel` field in the mapping file
+- **Backward Compatible**: Mapping files without the `panel` field will still work
+
+The server treats both panel types identically - it only cares about matching old subscription URLs to new ones, regardless of which panel generated them.
+
 ## How It Works
 
 1. **Startup**:
    - Loads server configuration from `config.json`
    - Loads URL mappings from `subscription_url_mapping.json`
+   - Detects panel type (if `panel` field is present) and logs it
    - Builds an in-memory lookup table from old paths to new URLs
 
 2. **Request Handling**: When a request arrives:

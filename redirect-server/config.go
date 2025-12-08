@@ -19,6 +19,7 @@ type ServerConfig struct {
 	Host           string    `json:"host"`
 	Port           int       `json:"port"`
 	RedirectDomain string    `json:"redirect_domain"`
+	Panel          string    `json:"panel,omitempty"` // Panel identifier (e.g., "x-ui", "marzneshin")
 	SSL            SSLConfig `json:"ssl"`
 }
 
@@ -29,6 +30,7 @@ type UserMapping struct {
 	NewSubscriptionURL  string `json:"new_subscription_url"`
 	UsernamePasarguard  string `json:"username_pasarguard,omitempty"`
 	MatchedBy           string `json:"matched_by,omitempty"`
+	InboundID           *int   `json:"inbound_id,omitempty"` // For x-ui: inbound ID associated with this user
 }
 
 // MappingData holds the URL mapping data
@@ -37,6 +39,7 @@ type MappingData struct {
 	TotalUsers    int                    `json:"total_users"`
 	MappedUsers   int                    `json:"mapped_users"`
 	NotFoundUsers int                    `json:"not_found_users"`
+	Panel         string                 `json:"panel,omitempty"` // Panel identifier (e.g., "x-ui", "marzneshin")
 	URLFormats    map[string]string      `json:"url_formats"`
 	Mappings      map[string]UserMapping `json:"mappings"`
 	NotFound      map[string]UserMapping `json:"not_found,omitempty"`

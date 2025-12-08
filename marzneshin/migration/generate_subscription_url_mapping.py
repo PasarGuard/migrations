@@ -304,6 +304,7 @@ def generate_subscription_url_mapping(
             "total_users": len(marzneshin_users),
             "mapped_users": len(mappings),
             "not_found_users": len(not_found),
+            "panel": "marzneshin",
             "url_formats": {
                 "old_format": f"/{marzneshin_subscription_path}/{{username}}/{{key}}",
                 "new_format": f"/{pasarguard_subscription_path}/{{token}}"
