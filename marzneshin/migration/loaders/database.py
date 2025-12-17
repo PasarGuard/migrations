@@ -1121,9 +1121,9 @@ class PasarguardLoader:
                     "subscription_revoked": False
                 })
                 # Escape the JSON string for use in SQL (escape single quotes by doubling them for MySQL)
-                # Then wrap in CAST(... AS JSON) for proper JSON default value
+                # MySQL JSON defaults should be specified as ('{"key": "value"}') - JSON literal in parentheses
                 escaped_default = default_notification_enable.replace("'", "''")
-                json_default = f"CAST('{escaped_default}' AS JSON)"
+                json_default = f"('{escaped_default}')"
                 
                 if 'notification_enable' not in existing_columns:
                     logger.info("Adding missing 'notification_enable' column to admins table...")
