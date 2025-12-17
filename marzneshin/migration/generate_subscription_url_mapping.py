@@ -179,7 +179,7 @@ def generate_subscription_url_mapping(
                 SELECT u.id, u.username, u.key, u.admin_id, a.subscription_url_prefix as admin_subscription_url_prefix
                 FROM users u
                 LEFT JOIN admins a ON u.admin_id = a.id
-                WHERE u.username IS NOT NULL AND u.username != ''
+                WHERE u.username IS NOT NULL AND TRIM(u.username) != ''
                 ORDER BY u.id
             """)
             marzneshin_users = cursor.fetchall()
@@ -190,7 +190,7 @@ def generate_subscription_url_mapping(
                 SELECT u.id, u.username, u.admin_id, a.sub_domain as admin_sub_domain
                 FROM users u
                 LEFT JOIN admins a ON u.admin_id = a.id
-                WHERE u.username IS NOT NULL AND u.username != ''
+                WHERE u.username IS NOT NULL AND TRIM(u.username) != ''
                 ORDER BY u.id
             """)
             pasarguard_users = cursor.fetchall()

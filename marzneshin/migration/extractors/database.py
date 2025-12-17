@@ -138,7 +138,14 @@ class MarzneshinExtractor:
             with self.conn.cursor() as count_cursor:
                 # Filter out soft-deleted users (users without username) for count
                 if table == 'users':
-                    count_cursor.execute(f"SELECT COUNT(*) as count FROM `{table}` WHERE `username` IS NOT NULL AND `username` != ''")
+                    # Check total count before filtering for logging
+                    count_cursor.execute(f"SELECT COUNT(*) as count FROM `{table}`")
+                    total_before_filter = count_cursor.fetchone()['count']
+                    # Count valid users (not NULL, not empty, not whitespace-only)
+                    count_cursor.execute(f"SELECT COUNT(*) as count FROM `{table}` WHERE `username` IS NOT NULL AND TRIM(`username`) != ''")
+                    total_count = count_cursor.fetchone()['count']
+                    if total_before_filter > total_count:
+                        logger.info(f"  Filtered out {total_before_filter - total_count} soft-deleted users (NULL or empty username)")
                 elif table in ['users_services', 'users_groups_association', 'next_plans', 
                               'user_usage_logs', 'notification_reminders', 'user_subscription_updates', 
                               'node_user_usages']:
@@ -152,7 +159,7 @@ class MarzneshinExtractor:
                                 SELECT 1 FROM `users` 
                                 WHERE `users`.`id` = `{table}`.`{user_id_col}` 
                                 AND `users`.`username` IS NOT NULL 
-                                AND `users`.`username` != ''
+                                AND TRIM(`users`.`username`) != ''
                             )
                         """)
                     else:
@@ -168,7 +175,7 @@ class MarzneshinExtractor:
             # Filter out soft-deleted users (users without username)
             # Also filter related tables to only include rows referencing valid users
             if table == 'users':
-                query += " WHERE `username` IS NOT NULL AND `username` != ''"
+                query += " WHERE `username` IS NOT NULL AND TRIM(`username`) != ''"
             elif table in ['users_services', 'users_groups_association', 'next_plans', 
                           'user_usage_logs', 'notification_reminders', 'user_subscription_updates', 
                           'node_user_usages']:
@@ -381,7 +388,7 @@ class MarzneshinExtractor:
                     INNER JOIN users u ON nuu.user_id = u.id
                     WHERE u.admin_id IS NOT NULL
                     AND u.username IS NOT NULL
-                    AND u.username != ''
+                    AND TRIM(u.username) != ''
                 """)
                 total_count = count_cursor.fetchone()['count']
             
@@ -414,7 +421,7 @@ class MarzneshinExtractor:
                     INNER JOIN users u ON nuu.user_id = u.id
                     WHERE u.admin_id IS NOT NULL
                     AND u.username IS NOT NULL
-                    AND u.username != ''
+                    AND TRIM(u.username) != ''
                     GROUP BY nuu.created_at, u.admin_id
                     ORDER BY nuu.created_at DESC
                 """
@@ -429,7 +436,7 @@ class MarzneshinExtractor:
                     INNER JOIN users u ON nuu.user_id = u.id
                     WHERE u.admin_id IS NOT NULL
                     AND u.username IS NOT NULL
-                    AND u.username != ''
+                    AND TRIM(u.username) != ''
                     GROUP BY nuu.created_at, u.admin_id
                     ORDER BY nuu.created_at DESC
                 """
