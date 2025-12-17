@@ -172,13 +172,14 @@ def generate_subscription_url_mapping(
         # Get Pasarguard JWT secret for token generation
         jwt_secret = get_pasarguard_jwt_secret(pasarguard_conn)
         
-        # Get all users from both databases
+        # Get all users from both databases (excluding soft-deleted users without usernames)
         logger.info("Fetching users from Marzneshin...")
         with marzneshin_conn.cursor(DictCursor) as cursor:
             cursor.execute("""
                 SELECT u.id, u.username, u.key, u.admin_id, a.subscription_url_prefix as admin_subscription_url_prefix
                 FROM users u
                 LEFT JOIN admins a ON u.admin_id = a.id
+                WHERE u.username IS NOT NULL AND u.username != ''
                 ORDER BY u.id
             """)
             marzneshin_users = cursor.fetchall()
@@ -189,6 +190,7 @@ def generate_subscription_url_mapping(
                 SELECT u.id, u.username, u.admin_id, a.sub_domain as admin_sub_domain
                 FROM users u
                 LEFT JOIN admins a ON u.admin_id = a.id
+                WHERE u.username IS NOT NULL AND u.username != ''
                 ORDER BY u.id
             """)
             pasarguard_users = cursor.fetchall()
