@@ -136,11 +136,46 @@ class MarzneshinExtractor:
             
             # Get total count first to decide if we need filtering
             with self.conn.cursor() as count_cursor:
-                count_cursor.execute(f"SELECT COUNT(*) as count FROM `{table}`")
-                total_count = count_cursor.fetchone()['count']
+                # Filter out soft-deleted users (users without username) for count
+                if table == 'users':
+                    count_cursor.execute(f"SELECT COUNT(*) as count FROM `{table}` WHERE `username` IS NOT NULL AND `username` != ''")
+                elif table in ['users_services', 'users_groups_association', 'next_plans', 
+                              'user_usage_logs', 'notification_reminders', 'user_subscription_updates', 
+                              'node_user_usages']:
+                    # Count only rows referencing valid users
+                    user_id_col = 'user_id' if 'user_id' in columns else 'users_id'
+                    if user_id_col in columns:
+                        count_cursor.execute(f"""
+                            SELECT COUNT(*) as count 
+                            FROM `{table}` 
+                            WHERE EXISTS (
+                                SELECT 1 FROM `users` 
+                                WHERE `users`.`id` = `{table}`.`{user_id_col}` 
+                                AND `users`.`username` IS NOT NULL 
+                                AND `users`.`username` != ''
+                            )
+                        """)
+                    else:
+                        count_cursor.execute(f"SELECT COUNT(*) as count FROM `{table}`")
+                    total_count = count_cursor.fetchone()['count']
+                else:
+                    count_cursor.execute(f"SELECT COUNT(*) as count FROM `{table}`")
+                    total_count = count_cursor.fetchone()['count']
             
             # Build query
             query = f"SELECT {', '.join(escaped_columns)} FROM `{table}`"
+            
+            # Filter out soft-deleted users (users without username)
+            # Also filter related tables to only include rows referencing valid users
+            if table == 'users':
+                query += " WHERE `username` IS NOT NULL AND `username` != ''"
+            elif table in ['users_services', 'users_groups_association', 'next_plans', 
+                          'user_usage_logs', 'notification_reminders', 'user_subscription_updates', 
+                          'node_user_usages']:
+                # Filter to only include rows where the user has a username (not soft-deleted)
+                user_id_col = 'user_id' if 'user_id' in columns else 'users_id'
+                if user_id_col in columns:
+                    query += f" WHERE EXISTS (SELECT 1 FROM `users` WHERE `users`.`id` = `{table}`.`{user_id_col}` AND `users`.`username` IS NOT NULL AND `users`.`username` != '')"
             
             # For very large usage tables, apply intelligent filtering
             is_usage_table = table in ['node_user_usages', 'node_usages', 'admin_usage_logs', 'user_usage_logs']
@@ -345,6 +380,8 @@ class MarzneshinExtractor:
                     FROM node_user_usages nuu
                     INNER JOIN users u ON nuu.user_id = u.id
                     WHERE u.admin_id IS NOT NULL
+                    AND u.username IS NOT NULL
+                    AND u.username != ''
                 """)
                 total_count = count_cursor.fetchone()['count']
             
@@ -376,6 +413,8 @@ class MarzneshinExtractor:
                     INNER JOIN node_user_usages nuu ON nuu.created_at = recent_dates.created_at
                     INNER JOIN users u ON nuu.user_id = u.id
                     WHERE u.admin_id IS NOT NULL
+                    AND u.username IS NOT NULL
+                    AND u.username != ''
                     GROUP BY nuu.created_at, u.admin_id
                     ORDER BY nuu.created_at DESC
                 """
@@ -389,6 +428,8 @@ class MarzneshinExtractor:
                     FROM node_user_usages nuu
                     INNER JOIN users u ON nuu.user_id = u.id
                     WHERE u.admin_id IS NOT NULL
+                    AND u.username IS NOT NULL
+                    AND u.username != ''
                     GROUP BY nuu.created_at, u.admin_id
                     ORDER BY nuu.created_at DESC
                 """
