@@ -144,6 +144,7 @@ PASARGUARD_TABLES = {
     "node_user_usages",
     "node_usages",
     "node_stats",
+    "node_usage_reset_logs",
     "notification_reminders",
     "core_configs",
     "system",

@@ -125,6 +125,7 @@ class MigrationOrchestrator:
             self.loader.add_missing_host_columns()
             self.loader.fix_hosts_null_paths()
             self.loader.fix_settings_default_flow()
+            self.loader.create_node_usage_reset_logs_table()
             
             # Step 12: Generate subscription URL mapping
             logger.info("\n[STEP 12] Generating subscription URL mapping...")

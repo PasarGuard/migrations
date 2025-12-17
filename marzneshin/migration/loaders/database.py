@@ -1313,3 +1313,41 @@ class PasarguardLoader:
             self.conn.rollback()
             logger.error(f"Failed to add missing user_template columns: {e}")
             raise
+    
+    def create_node_usage_reset_logs_table(self):
+        """
+        Create node_usage_reset_logs table if it doesn't exist.
+        This table is created by Alembic migration 2dffd851d87c but needs to exist
+        before Pasarguard starts.
+        """
+        if not self.conn:
+            raise RuntimeError("Not connected to database")
+        
+        try:
+            if self.table_exists('node_usage_reset_logs'):
+                logger.info("node_usage_reset_logs table already exists")
+                return
+            
+            logger.info("Creating node_usage_reset_logs table...")
+            with self.conn.cursor() as cursor:
+                cursor.execute("""
+                    CREATE TABLE `node_usage_reset_logs` (
+                        `id` INT NOT NULL AUTO_INCREMENT,
+                        `created_at` DATETIME(6) NOT NULL,
+                        `node_id` INT NOT NULL,
+                        `uplink` BIGINT NOT NULL,
+                        `downlink` BIGINT NOT NULL,
+                        PRIMARY KEY (`id`),
+                        CONSTRAINT `fk_node_usage_reset_logs_node_id` 
+                        FOREIGN KEY (`node_id`) 
+                        REFERENCES `nodes`(`id`) 
+                        ON DELETE CASCADE
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """)
+            self.conn.commit()
+            logger.info("✓ Created node_usage_reset_logs table")
+                
+        except Exception as e:
+            self.conn.rollback()
+            logger.error(f"Failed to create node_usage_reset_logs table: {e}")
+            raise
