@@ -39,7 +39,7 @@ class MigrationConfig:
     # Set this to the latest PasarGuard migration revision after successful migration
     # This tells Alembic that the database schema is up-to-date
     set_alembic_version: bool = True
-    alembic_version: str = '797420faec8d'  # Latest PasarGuard migration (admin_notification_enable)
+    alembic_version: str = 'ee97c01bfbaf'  # Latest PasarGuard migration (add api_port column)
     
     # Logging
     log_level: str = 'INFO'

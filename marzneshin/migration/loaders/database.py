@@ -774,25 +774,66 @@ class PasarguardLoader:
                     columns_added.append('core_config_id')
                     logger.info("✓ Added core_config_id column to nodes table")
                 
-                # Add max_logs column if missing
-                if 'max_logs' not in existing_columns:
-                    logger.info("Adding missing 'max_logs' column to nodes table...")
+                # Add data_limit column if missing
+                if 'data_limit' not in existing_columns:
+                    logger.info("Adding missing 'data_limit' column to nodes table...")
                     cursor.execute("""
                         ALTER TABLE nodes 
-                        ADD COLUMN `max_logs` BIGINT NOT NULL DEFAULT 1000
+                        ADD COLUMN `data_limit` BIGINT NOT NULL DEFAULT 0
                     """)
-                    columns_added.append('max_logs')
-                    logger.info("✓ Added max_logs column to nodes table")
+                    columns_added.append('data_limit')
+                    logger.info("✓ Added data_limit column to nodes table")
                 
-                # Add gather_logs column if missing
-                if 'gather_logs' not in existing_columns:
-                    logger.info("Adding missing 'gather_logs' column to nodes table...")
+                # Add data_limit_reset_strategy column if missing
+                if 'data_limit_reset_strategy' not in existing_columns:
+                    logger.info("Adding missing 'data_limit_reset_strategy' column to nodes table...")
                     cursor.execute("""
                         ALTER TABLE nodes 
-                        ADD COLUMN `gather_logs` TINYINT(1) NOT NULL DEFAULT 1
+                        ADD COLUMN `data_limit_reset_strategy` ENUM('no_reset', 'day', 'week', 'month', 'year') 
+                        NOT NULL DEFAULT 'no_reset'
                     """)
-                    columns_added.append('gather_logs')
-                    logger.info("✓ Added gather_logs column to nodes table")
+                    columns_added.append('data_limit_reset_strategy')
+                    logger.info("✓ Added data_limit_reset_strategy column to nodes table")
+                
+                # Add reset_time column if missing
+                if 'reset_time' not in existing_columns:
+                    logger.info("Adding missing 'reset_time' column to nodes table...")
+                    cursor.execute("""
+                        ALTER TABLE nodes 
+                        ADD COLUMN `reset_time` INT NOT NULL DEFAULT -1
+                    """)
+                    columns_added.append('reset_time')
+                    logger.info("✓ Added reset_time column to nodes table")
+                
+                # Add default_timeout column if missing
+                if 'default_timeout' not in existing_columns:
+                    logger.info("Adding missing 'default_timeout' column to nodes table...")
+                    cursor.execute("""
+                        ALTER TABLE nodes 
+                        ADD COLUMN `default_timeout` INT NOT NULL DEFAULT 10
+                    """)
+                    columns_added.append('default_timeout')
+                    logger.info("✓ Added default_timeout column to nodes table")
+                
+                # Add internal_timeout column if missing
+                if 'internal_timeout' not in existing_columns:
+                    logger.info("Adding missing 'internal_timeout' column to nodes table...")
+                    cursor.execute("""
+                        ALTER TABLE nodes 
+                        ADD COLUMN `internal_timeout` INT NOT NULL DEFAULT 15
+                    """)
+                    columns_added.append('internal_timeout')
+                    logger.info("✓ Added internal_timeout column to nodes table")
+                
+                # Add api_port column if missing
+                if 'api_port' not in existing_columns:
+                    logger.info("Adding missing 'api_port' column to nodes table...")
+                    cursor.execute("""
+                        ALTER TABLE nodes 
+                        ADD COLUMN `api_port` INT NOT NULL DEFAULT 62051
+                    """)
+                    columns_added.append('api_port')
+                    logger.info("✓ Added api_port column to nodes table")
                 
                 # Log summary
                 if columns_added:
