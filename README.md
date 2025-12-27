@@ -28,6 +28,7 @@ source $HOME/.cargo/env
 ## Supported Panels
 
 - **Marzneshin** - See [marzneshin/README.md](marzneshin/README.md)
+- **X-UI** - See [x-ui/README.md](x-ui/README.md)
 
 ## Migration Workflow
 
