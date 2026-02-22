@@ -29,6 +29,7 @@ source $HOME/.cargo/env
 
 - **Marzneshin** - See [marzneshin/README.md](marzneshin/README.md)
 - **X-UI** - See [x-ui/README.md](x-ui/README.md)
+- **v2board (SQL dump)** - See [v2board/README.md](v2board/README.md)
 
 ## Migration Workflow
 
