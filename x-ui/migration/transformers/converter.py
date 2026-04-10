@@ -156,6 +156,9 @@ class DataConverter:
         if transform_func == "enable_to_status":
             enable = value
             expiry_time = row.get("expiry_time", 0)
+            # x-ui stores expiry_time in milliseconds; convert to seconds
+            if expiry_time and expiry_time > 1e10:
+                expiry_time = expiry_time / 1000.0
             data_limit = row.get("total", 0)  # x-ui uses 'total' for data limit
             used_traffic = (row.get("up", 0) or 0) + (row.get("down", 0) or 0)
             
@@ -185,7 +188,9 @@ class DataConverter:
         elif transform_func == "expiry_time_to_expire":
             if value and value > 0:
                 try:
-                    return datetime.fromtimestamp(value, tz=timezone.utc)
+                    # x-ui stores expiry_time in milliseconds; convert to seconds
+                    timestamp_seconds = value / 1000.0 if value > 1e10 else value
+                    return datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
                 except (ValueError, OSError):
                     return None
             return None
@@ -257,6 +262,9 @@ class DataConverter:
             if "status" not in converted:
                 enable = source_row.get("enable", 1)
                 expiry_time = source_row.get("expiry_time", 0)
+                # x-ui stores expiry_time in milliseconds; convert to seconds
+                if expiry_time and expiry_time > 1e10:
+                    expiry_time = expiry_time / 1000.0
                 data_limit = source_row.get("total", 0)
                 used_traffic = converted.get("used_traffic", 0)
                 
