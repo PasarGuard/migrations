@@ -225,14 +225,37 @@ def generate_subscription_url_mapping(
         cursor = xui_conn.cursor()
         if xui_user_table not in ['client_traffics', 'clients']:
             raise ValueError(f"Invalid table name: {xui_user_table}")
-        
-        # First, check what columns are available in client_traffics
+
+        logger.info("Pre-loading subIds from inbounds...")
+        cursor.execute("SELECT id, settings FROM inbounds")
+        inbound_subid_map: dict[tuple, str] = {}
+        inbound_count = 0
+        for ib_row in cursor:
+            inbound_count += 1
+            raw = ib_row['settings']
+            if not raw:
+                logger.debug(f"Inbound {ib_row['id']} has empty settings, skipping")
+                continue
+            try:
+                ib_settings = json.loads(raw) if isinstance(raw, str) else raw
+                for client in ib_settings.get('clients', []):
+                    client_email = client.get('email', '').strip()
+                    sub_id = (
+                        client.get('subId') or client.get('sub_id') or
+                        client.get('sub_token') or client.get('subscription_token') or
+                        client.get('token') or client.get('sub')
+                    )
+                    if client_email and sub_id:
+                        inbound_subid_map[(ib_row['id'], client_email)] = sub_id
+            except (json.JSONDecodeError, AttributeError) as e:
+                logger.warning(f"Failed to parse settings for inbound {ib_row['id']}: {e}")
+        logger.info(f"  Built subId map: {len(inbound_subid_map)} entries across {inbound_count} inbounds")
+
         cursor.execute(f"PRAGMA table_info(`{xui_user_table}`)")
         columns = [row[1] for row in cursor.fetchall()]
         logger.debug(f"Available columns in {xui_user_table}: {columns}")
-        
-        # Try to select subscription token if it exists (common names: sub_token, subscription_token, token, sub)
-        select_fields = ["ct.id", "ct.email", "ct.inbound_id", "i.settings as inbound_settings"]
+
+        select_fields = ["ct.id", "ct.email", "ct.inbound_id"]
         if 'sub_token' in columns:
             select_fields.append("ct.sub_token")
         elif 'subscription_token' in columns:
@@ -241,11 +264,10 @@ def generate_subscription_url_mapping(
             select_fields.append("ct.token")
         elif 'sub' in columns:
             select_fields.append("ct.sub")
-        
+
         cursor.execute(f"""
             SELECT {', '.join(select_fields)}
             FROM `{xui_user_table}` ct
-            LEFT JOIN inbounds i ON ct.inbound_id = i.id
             ORDER BY ct.id
         """)
         xui_users = cursor.fetchall()
@@ -302,8 +324,7 @@ def generate_subscription_url_mapping(
             email = xui_user['email']
             xui_user_id = xui_user['id']
             inbound_id = xui_user['inbound_id']
-            inbound_settings = xui_user['inbound_settings']
-            
+
             old_url = None
             subscription_token = None
             for token_field in ['sub_token', 'subscription_token', 'token', 'sub']:
@@ -314,14 +335,12 @@ def generate_subscription_url_mapping(
                         break
                 except (KeyError, IndexError):
                     continue
-            
-            if inbound_settings:
-                sub_id = extract_subscription_token_from_inbound(inbound_settings, email)
-                if sub_id:
-                    subscription_token = sub_id
-            
+
+            if not subscription_token and email and inbound_id is not None:
+                subscription_token = inbound_subid_map.get((inbound_id, email))
+
             if not subscription_token:
-                logger.warning(f"No subscription token (subId) found for user {email} (ID: {xui_user_id}). Skipping...")
+                logger.debug(f"No subId for user '{email}' (ID: {xui_user_id}, inbound: {inbound_id})")
                 not_found[email if email else f"user_{xui_user_id}"] = {
                     "user_id": xui_user_id,
                     "reason": "No subscription token (subId) found in inbound settings"
