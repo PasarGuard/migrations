@@ -265,12 +265,15 @@ def generate_subscription_url_mapping(
         elif 'sub' in columns:
             select_fields.append("ct.sub")
 
-        cursor.execute(f"""
+        cursor.execute(f"SELECT COUNT(*) FROM `{xui_user_table}`")
+        total_xui_users = cursor.fetchone()[0]
+
+        xui_cursor = xui_conn.cursor()
+        xui_cursor.execute(f"""
             SELECT {', '.join(select_fields)}
             FROM `{xui_user_table}` ct
             ORDER BY ct.id
         """)
-        xui_users = cursor.fetchall()
         
         logger.info("Fetching users from Pasarguard...")
         cursor = pasarguard_conn.cursor()
@@ -316,10 +319,10 @@ def generate_subscription_url_mapping(
         matched_by_email = 0
         matched_by_id = 0
         
-        logger.info(f"Processing {len(xui_users)} users...")
-        for idx, xui_user in enumerate(xui_users, 1):
-            if idx % 100 == 0 or idx == len(xui_users):
-                logger.info(f"  Processed {idx}/{len(xui_users)} users...")
+        logger.info(f"Processing {total_xui_users} users...")
+        for idx, xui_user in enumerate(xui_cursor, 1):
+            if idx % 100 == 0 or idx == total_xui_users:
+                logger.info(f"  Processed {idx}/{total_xui_users} users...")
             
             email = xui_user['email']
             xui_user_id = xui_user['id']
@@ -408,7 +411,7 @@ def generate_subscription_url_mapping(
         
         result = {
             "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "total_users": len(xui_users),
+            "total_users": total_xui_users,
             "mapped_users": len(mappings),
             "not_found_users": len(not_found),
             "panel": "x-ui",
